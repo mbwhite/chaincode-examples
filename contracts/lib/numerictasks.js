@@ -9,6 +9,8 @@ const SmartContract = require('fabric-shim').contractapi.SmartContract;
 // Business logic (well just util but still it's general purpose logic)
 const util = require('util');
 
+const _ = require('lodash');
+
 /**
  * Support the Updating of values within the SmartContract
  */
@@ -19,8 +21,8 @@ class UpdateValues extends SmartContract {
 	 * be separated from others.
 	 */
 	constructor() {
-		super('org.mynamespace.updates');
-		this.$setUnkownFn(this.unkownFn);
+		super('org.mynamespace.numeric');
+		this.$setUnknownFn(this.unknownFn);
 	}
 
 	/** The function to invoke if something unkown comes in.
@@ -38,19 +40,22 @@ class UpdateValues extends SmartContract {
 	 * @param {api} api 
 	 */
 	async setup(api){
-		return api.putState('dummyKey', Buffer.from('Starting Value'));
+		return api.putState('dummyKey', Buffer.from("{}"));
 	}
 
-	/**
-	 * 
-	 * @param {api} api 
-	 * @param {int|string} newAssetValue new asset value to set
-	 */
-	async setNewAssetValue(api, newAssetValue) {
-		console.info(`Transaction ID: ${api.getTxID()}`);
-		console.info(`New Asset value will be ${newAssetValue}`);
+	async setNumber(api,value){
+		// console.info('Transaction ID: ' + api.getTxID());
+		
+		let i = _.parseInt(value)
+		let data={type:'number'};
 
-		return api.putState('dummyKey', Buffer.from(newAssetValue));
+		if (isNaN(i)){
+			throw new Error('Sorry can\'t handle this')
+		} else {
+			data.value = i
+		}
+
+		await api.putState('dummyKey',Buffer.from(JSON.stringify(data)));	
 	}
 
 	/**
@@ -60,16 +65,47 @@ class UpdateValues extends SmartContract {
 	async doubleAssetValue(api) {
 		console.info(`Transaction ID: ${api.getTxID()}`);
 
-		let value = await api.getState('dummyKey')
-		if (isNaN(value)) {
+		let data = JSON.parse(await api.getState('dummyKey'))
+		if (data.type!=='number') {
+			let str = `Need to have numerc value`;
+			
+			throw new Error(str);
+		} else {
+			data.value = data.value*2;
+			await api.putState('dummyKey',Buffer.from(JSON.stringify(data)));
+			return data.value;						
+		}
+	}
+	/**
+	 * Doubles the api if it is a number fail otherwise
+	 * @param {api} api 
+	 */
+	async quarterNumber(api) {
+		console.info(`Transaction ID: ${api.getTxID()}`);
+
+		let data = JSON.parse(await api.getState('dummyKey'));
+		if (data.type!=='number') {
 			let str = `'Need to have numerc value set to double it, ${value}`;
 			console.error(str);
 			throw new Error(str);
 		} else {
-			let v = value*2;
-			await api.putState('dummyKey', v)
-			return v;						
+			data.value = data.value/4;
+			await api.putState('dummyKey',Buffer.from(JSON.stringify(data)));
+			return data.value;						
 		}
+	}
+
+	async getNumber(api){
+		// console.info('Transaction ID: ' + api.getTxID());
+		
+		let data = JSON.parse(await api.getState('dummyKey'))
+		
+		if (data.type !== 'number' ){
+			throw new Error('Value is not a number')
+		} else {
+			return data.value;
+		}
+		
 	}
 
 };
